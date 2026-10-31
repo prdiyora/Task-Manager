@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Task Manager</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
+<style>
+:root{
+  --bg:#0d1117; --card:#161b22; --card2:#1c2330; --border:#2d333f;
+  --text:#e6e9ef; --muted:#8b949e; --accent:#ff7a1a; --accent2:#ffb25e;
+  --green:#2ea043; --green-soft:rgba(46,160,67,.15); --red:#f85149;
+  --blue:#58a6ff; --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.45;padding-bottom:48px}
+.wrap{max-width:680px;margin:0 auto;padding:0 14px}
+/* gate */
+#gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+#gate.hidden{display:none}
+.gate-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 22px;width:100%;max-width:340px;text-align:center}
+.gate-card .lock{font-size:2.6rem;margin-bottom:8px}
+.gate-card h1{font-size:1.2rem;font-weight:700;margin-bottom:4px}
+.gate-card p{color:var(--muted);font-size:.82rem;margin-bottom:18px}
+.gate-card input{width:100%;padding:13px 14px;font-size:1rem;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text);outline:none;text-align:center;letter-spacing:.5px}
+.gate-card input:focus{border-color:var(--accent)}
+.gate-card button{width:100%;margin-top:12px;padding:13px;font-size:.95rem;font-weight:700;border:none;border-radius:12px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#111;cursor:pointer}
+.gate-card button:active{opacity:.85}
+.gate-err{color:var(--red);font-size:.78rem;margin-top:10px;min-height:1em}
+.gate-spin{color:var(--muted);font-size:.78rem;margin-top:10px}
+/* app */
+#app{display:none}
+#app.on{display:block}
+header.top{position:sticky;top:0;z-index:20;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:12px 14px 10px}
+header.top .wrap{padding:0}
+h1{font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:8px}
+h1 .logo{font-size:1.3rem}
+.date-line{color:var(--muted);font-size:.8rem;margin-top:2px}
+.updated-line{color:var(--muted);font-size:.72rem;margin-top:2px}
+.progress-wrap{margin-top:10px;background:var(--card2);border-radius:99px;height:10px;overflow:hidden}
+.progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s ease}
+.progress-label{font-size:.75rem;color:var(--accent2);margin-top:4px;font-weight:600}
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;position:sticky;top:74px;z-index:15;background:var(--bg);scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);font-size:.8rem;font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:99px;background:var(--card)}
+nav.tabs a:active{background:var(--accent);color:#111}
+section{margin-top:18px}
+h2{font-size:.95rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+h2 .count{background:var(--card2);color:var(--accent2);font-size:.72rem;padding:1px 8px;border-radius:99px;border:1px solid var(--border)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.task{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;transition:opacity .3s}
+.task .num{flex:0 0 auto;width:24px;height:24px;border-radius:8px;background:var(--card2);color:var(--accent2);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)}
+.task .body{flex:1;min-width:0}
+.task .t{font-size:.88rem;font-weight:600}
+.task .p{font-size:.72rem;color:var(--muted);margin-top:2px}
+.task input[type=checkbox]{flex:0 0 auto;width:26px;height:26px;accent-color:var(--green);margin-top:2px;cursor:pointer}
+.task.done{opacity:.55;border-color:var(--green)}
+.task.done .t{text-decoration:line-through;color:var(--muted)}
+.chip{display:inline-block;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px}
+.chip.active{background:rgba(88,166,255,.14);color:var(--blue)}
+.chip.daily{background:rgba(255,122,26,.14);color:var(--accent2)}
+.chip.done{background:var(--green-soft);color:var(--green)}
+.chip.pending{background:rgba(139,148,158,.14);color:var(--muted)}
+.proj-head{display:flex;align-items:center;gap:10px}
+.proj-head .icon{font-size:1.35rem}
+.proj-head .name{flex:1;font-weight:700;font-size:.92rem}
+.proj-goal{font-size:.8rem;color:var(--muted);margin-top:6px}
+.proj-target{font-size:.78rem;margin-top:4px}
+.proj-target b{color:var(--accent2)}
+.proj-bar{margin-top:8px;background:var(--card2);border-radius:99px;height:7px;overflow:hidden}
+.proj-bar>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px}
+.proj-update{font-size:.74rem;color:var(--muted);margin-top:7px;border-top:1px dashed var(--border);padding-top:7px}
+.proj-update b{color:var(--text);font-weight:600}
+.goal-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.goal-row:last-child{border-bottom:none}
+.goal-row .g-body{flex:1}
+.goal-row .g-t{font-size:.85rem;font-weight:600}
+.goal-row .g-d{font-size:.72rem;color:var(--muted)}
+.goal-pct{font-size:.8rem;font-weight:700;color:var(--accent2)}
+.log-day{margin-bottom:12px}
+.log-day .d{font-size:.8rem;font-weight:700;color:var(--accent2);margin-bottom:4px}
+.log-day ul{list-style:none}
+.log-day li{font-size:.8rem;color:var(--muted);padding:3px 0 3px 18px;position:relative}
+.log-day li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
+.log-day li.missed::before{content:"•";color:var(--muted)}
+.empty{color:var(--muted);font-size:.82rem;padding:14px;text-align:center;border:1px dashed var(--border);border-radius:var(--radius)}
+footer{margin-top:28px;text-align:center;color:var(--muted);font-size:.7rem}
+@media (min-width:520px){ .proj-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} .proj-grid .card{margin-bottom:0} }
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="gate-card">
+    <div class="lock">🔒</div>
+    <h1>Task Manager</h1>
+    <p>Enter the password to open the dashboard</p>
+    <form id="gateForm" autocomplete="off">
+      <input type="password" id="gatePw" placeholder="Password" autofocus>
+      <button type="submit" id="gateBtn">Unlock</button>
+      <div class="gate-err" id="gateErr"></div>
+      <div class="gate-spin" id="gateSpin" style="display:none">Unlocking…</div>
+    </form>
+  </div>
+</div>
+<div id="app">
+<header class="top"><div class="wrap">
+  <h1><span class="logo">✅</span> Task Manager</h1>
+  <div class="date-line" id="dateLine"></div>
+  <div class="updated-line" id="updatedLine"></div>
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-label" id="progressLabel"></div>
+</div></header>
+<nav class="tabs">
+  <a href="#today">Today</a><a href="#projects">Projects</a><a href="#goals">Goals</a><a href="#done">Done</a><a href="#log">Daily Log</a>
+</nav>
+<div class="wrap">
+  <section id="today"><h2>📋 Today's Plan <span class="count" id="todayCount"></span></h2><div id="todayList"></div></section>
+  <section id="projects"><h2>🗂️ Projects <span class="count" id="projCount"></span></h2><div class="proj-grid" id="projGrid"></div></section>
+  <section id="goals"><h2>🎯 Goals &amp; Targets</h2><div class="card" id="goalList"></div></section>
+  <section id="done"><h2>🏁 Done <span class="count" id="doneCount"></span></h2><div id="doneList"></div></section>
+  <section id="log"><h2>🗓️ Daily Log</h2><div id="logList"></div></section>
+  <footer>Personal dashboard · updated daily</footer>
+</div>
+</div>
+<script src="data.js"></script>
+<script>
+function boot(D){
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').classList.add('on');
+  var todayKey = 'tm-done-' + (D.today && D.today.date || 'unknown');
+  var localDone = {};
+  try { JSON.parse(localStorage.getItem(todayKey) || '[]').forEach(function(id){ localDone[id]=true; }); } catch(e){}
+  function saveLocal(){ try { localStorage.setItem(todayKey, JSON.stringify(Object.keys(localDone).filter(function(k){return localDone[k];}))); } catch(e){} }
+  function isDone(t){ return !!(t.done || localDone[t.id]); }
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dt = D.today && D.today.date ? new Date(D.today.date + 'T00:00:00') : new Date();
+  document.getElementById('dateLine').textContent = days[dt.getDay()] + ', ' + dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+  if (D.updated) { var u = new Date(D.updated); document.getElementById('updatedLine').textContent = 'Last updated: ' + u.toLocaleString('en-IN', {day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true}); }
+
+  function render(){
+    var plan = (D.today && D.today.plan) || [];
+    var todoEl = document.getElementById('todayList');
+    var doneEl = document.getElementById('doneList');
+    todoEl.innerHTML = ''; doneEl.innerHTML = '';
+    var doneCount = 0;
+    plan.forEach(function(t, i){
+      var row = document.createElement('div');
+      var done = isDone(t);
+      row.className = 'task' + (done ? ' done' : '');
+      row.innerHTML = '<div class="num">' + (i+1) + '</div><div class="body"><div class="t"></div><div class="p"></div></div>';
+      row.querySelector('.t').textContent = t.text;
+      row.querySelector('.p').textContent = t.project || '';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = done;
+      cb.addEventListener('change', function(){ localDone[t.id] = cb.checked; if(!cb.checked) delete localDone[t.id]; saveLocal(); render(); });
+      row.appendChild(cb);
+      if (done) { doneCount++; doneEl.appendChild(row); } else { todoEl.appendChild(row); }
+    });
+    if (!plan.length) todoEl.innerHTML = '<div class="empty">No plan items yet for today.</div>';
+    if (!doneCount) doneEl.innerHTML = '<div class="empty">Nothing finished yet - tap a checkbox when an item is done.</div>';
+    document.getElementById('todayCount').textContent = (plan.length - doneCount) + ' left';
+    document.getElementById('doneCount').textContent = doneCount;
+    var pct = plan.length ? Math.round(doneCount / plan.length * 100) : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = doneCount + ' of ' + plan.length + ' done (' + pct + '%)';
+  }
+
+  var pg = document.getElementById('projGrid');
+  var projects = D.projects || [];
+  document.getElementById('projCount').textContent = projects.length;
+  projects.forEach(function(p){
+    var c = document.createElement('div'); c.className = 'card';
+    var barW = Math.max(0, Math.min(100, p.progress || 0));
+    c.innerHTML = '<div class="proj-head"><span class="icon"></span><span class="name"></span><span class="chip ' + (p.status || 'active') + '">' + (p.status || 'active') + '</span></div>'
+      + '<div class="proj-goal"></div><div class="proj-target"></div>'
+      + '<div class="proj-bar"><div style="width:' + barW + '%"></div></div>'
+      + (p.last_update ? '<div class="proj-update"><b>Latest:</b> <span class="lu"></span></div>' : '');
+    c.querySelector('.icon').textContent = p.icon || '📌';
+    c.querySelector('.name').textContent = p.name;
+    c.querySelector('.proj-goal').textContent = p.goal || '';
+    var tgt = c.querySelector('.proj-target');
+    if (p.target) { tgt.innerHTML = '<b>Target:</b> '; tgt.appendChild(document.createTextNode(p.target)); } else { tgt.remove(); }
+    if (p.last_update) c.querySelector('.lu').textContent = p.last_update;
+    pg.appendChild(c);
+  });
+
+  var gl = document.getElementById('goalList');
+  var goals = D.goals || [];
+  if (!goals.length) gl.innerHTML = '<div class="empty">No goals set.</div>';
+  goals.forEach(function(g){
+    var r = document.createElement('div'); r.className = 'goal-row';
+    r.innerHTML = '<div class="g-body"><div class="g-t"></div><div class="g-d"></div></div><div class="goal-pct"></div>';
+    r.querySelector('.g-t').textContent = g.text;
+    r.querySelector('.g-d').textContent = g.detail || '';
+    r.querySelector('.goal-pct').textContent = (g.progress != null ? g.progress + '%' : '');
+    gl.appendChild(r);
+  });
+
+  var ll = document.getElementById('logList');
+  var logs = D.log || [];
+  if (!logs.length) ll.innerHTML = '<div class="empty">Daily reports will appear here.</div>';
+  logs.forEach(function(day){
+    var d = document.createElement('div'); d.className = 'log-day card';
+    var items = (day.items || []).map(function(it){
+      return '<li class="' + (it.done === false ? 'missed' : '') + '"></li>';
+    });
+    d.innerHTML = '<div class="d"></div><ul>' + items.join('') + '</ul>';
+    d.querySelector('.d').textContent = day.date + (day.summary ? ' - ' + day.summary : '');
+    var lis = d.querySelectorAll('li');
+    (day.items || []).forEach(function(it, i){ lis[i].textContent = it.text; });
+    ll.appendChild(d);
+  });
+
+  render();
+}
+
+function b64ToBuf(b64){
+  var bin = atob(b64); var buf = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf;
+}
+
+async function unlock(password){
+  var E = window.ENCRYPTED_DATA;
+  if (!E) throw new Error('no-data');
+  var km = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  var key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: b64ToBuf(E.salt), iterations: E.iter, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBuf(E.iv) }, key, b64ToBuf(E.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+document.getElementById('gateForm').addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  var pw = document.getElementById('gatePw').value;
+  var err = document.getElementById('gateErr');
+  var spin = document.getElementById('gateSpin');
+  var btn = document.getElementById('gateBtn');
+  err.textContent = ''; spin.style.display = 'block'; btn.disabled = true;
+  try {
+    var data = await unlock(pw);
+    try { sessionStorage.setItem('tm-data', JSON.stringify(data)); } catch(e){}
+    boot(data);
+  } catch(e) {
+    spin.style.display = 'none'; btn.disabled = false;
+    err.textContent = 'Wrong password - try again';
+    document.getElementById('gatePw').select();
+  }
+});
+
+(function(){
+  var cached = null;
+  try { cached = sessionStorage.getItem('tm-data'); } catch(e){}
+  if (cached) { try { boot(JSON.parse(cached)); return; } catch(e){} }
+})();
+</script>
+</body>
+</html>
