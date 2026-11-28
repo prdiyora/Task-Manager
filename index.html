@@ -85,6 +85,8 @@ h2 .count{background:var(--card2);color:var(--accent2);font-size:.72rem;padding:
 .log-day li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
 .log-day li.missed::before{content:"•";color:var(--muted)}
 .empty{color:var(--muted);font-size:.82rem;padding:14px;text-align:center;border:1px dashed var(--border);border-radius:var(--radius)}
+.routine-sub{font-size:.72rem;color:var(--muted);margin:-6px 0 8px}
+#routineList .task{cursor:pointer}
 footer{margin-top:28px;text-align:center;color:var(--muted);font-size:.7rem}
 @media (min-width:520px){ .proj-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} .proj-grid .card{margin-bottom:0} }
 </style>
@@ -112,9 +114,10 @@ footer{margin-top:28px;text-align:center;color:var(--muted);font-size:.7rem}
   <div class="progress-label" id="progressLabel"></div>
 </div></header>
 <nav class="tabs">
-  <a href="#today">Today</a><a href="#projects">Projects</a><a href="#goals">Goals</a><a href="#done">Done</a><a href="#log">Daily Log</a>
+  <a href="#routine">Routine</a><a href="#today">Today</a><a href="#projects">Projects</a><a href="#goals">Goals</a><a href="#done">Done</a><a href="#log">Daily Log</a>
 </nav>
 <div class="wrap">
+  <section id="routine"><h2>🔁 Daily Routine <span class="count" id="routineCount"></span></h2><div class="routine-sub">Fixed daily items · auto every morning · tap a row to tick</div><div id="routineList"></div></section>
   <section id="today"><h2>📋 Today's Plan <span class="count" id="todayCount"></span></h2><div id="todayList"></div></section>
   <section id="projects"><h2>🗂️ Projects <span class="count" id="projCount"></span></h2><div class="proj-grid" id="projGrid"></div></section>
   <section id="goals"><h2>🎯 Goals &amp; Targets</h2><div class="card" id="goalList"></div></section>
@@ -212,6 +215,61 @@ function boot(D){
     (day.items || []).forEach(function(it, i){ lis[i].textContent = it.text; });
     ll.appendChild(d);
   });
+
+  // Daily routine template: fixed items, auto-listed every morning, one tap to tick.
+  // Ticks are stored per local date (tm-routine-YYYY-MM-DD), so the list resets each morning.
+  var PERSONAL_WORK = {0:'OFF after 4 PM',1:'SnapSeller coding',2:'Website SEO (3 sites rotation)',3:'PP coding',4:'SnapSeller marketing + Amazon Ads check',5:'PP coding + Amazon Ads',6:'Long session / backlog'};
+  function routineItems(){
+    var dow = new Date().getDay();
+    var items = [];
+    if (dow === 1) items.push({id:'mon-darshan', text:'Hathi Mandir darshan (Bholanath)', p:'Monday only · 8:30 AM'});
+    items.push(
+      {id:'exercise', text:'Exercise 20 min', p:'7:00–7:20'},
+      {id:'naam-am', text:'Naam jap 3k', p:'7:20–7:50'},
+      {id:'warm-water', text:'Warm water', p:'7:50'},
+      {id:'nasto', text:'Nasto + milk + soaked dates/almonds', p:'8:40–8:55'},
+      {id:'bike-jap', text:'Bike jap 3k', p:'on the way'},
+      {id:'lunch-jap', text:'Lunch jap 3k', p:'1:30–2:00'},
+      {id:'office-seo', text:'Office SEO', p:'4:00–5:30'},
+      {id:'reading', text:'Daily reading (evening PDF)', p:'6:30–7:00'},
+      {id:'naam-pm1', text:'Naam', p:'7:00–8:30 PM'},
+      {id:'personal-work', text:'Personal work: ' + PERSONAL_WORK[dow], p:'9:00–10:30'},
+      {id:'main-mala', text:'Main mala 45 min', p:'daily'},
+      {id:'naam-pm2', text:'Naam', p:'10:30–11:30 PM'},
+      {id:'diary', text:'Diary', p:'11:30 PM'},
+      {id:'chalisa', text:'Hanuman Chalisa + pack up', p:'11:40 PM'}
+    );
+    return items;
+  }
+  var _now = new Date();
+  var routineKey = 'tm-routine-' + _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0') + '-' + String(_now.getDate()).padStart(2,'0');
+  var routineDone = {};
+  try { JSON.parse(localStorage.getItem(routineKey) || '[]').forEach(function(id){ routineDone[id]=true; }); } catch(e){}
+  function saveRoutine(){ try { localStorage.setItem(routineKey, JSON.stringify(Object.keys(routineDone).filter(function(k){return routineDone[k];}))); } catch(e){} }
+  function renderRoutine(){
+    var items = routineItems();
+    var el = document.getElementById('routineList');
+    el.innerHTML = '';
+    var dc = 0;
+    items.forEach(function(t, i){
+      var done = !!routineDone[t.id];
+      if (done) dc++;
+      var row = document.createElement('div');
+      row.className = 'task' + (done ? ' done' : '');
+      row.innerHTML = '<div class="num">' + (i+1) + '</div><div class="body"><div class="t"></div><div class="p"></div></div>';
+      row.querySelector('.t').textContent = t.text;
+      row.querySelector('.p').textContent = t.p;
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = done;
+      function toggle(){ routineDone[t.id] = cb.checked; if(!cb.checked) delete routineDone[t.id]; saveRoutine(); renderRoutine(); }
+      cb.addEventListener('change', toggle);
+      row.addEventListener('click', function(ev){ if (ev.target !== cb) { cb.checked = !cb.checked; toggle(); } });
+      row.appendChild(cb);
+      el.appendChild(row);
+    });
+    document.getElementById('routineCount').textContent = dc + '/' + items.length + ' done';
+  }
+  renderRoutine();
 
   render();
 }
