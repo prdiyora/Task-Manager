@@ -29,6 +29,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .gate-card button:active{opacity:.85}
 .gate-err{color:var(--red);font-size:.78rem;margin-top:10px;min-height:1em}
 .gate-spin{color:var(--muted);font-size:.78rem;margin-top:10px}
+.gate-note{color:var(--muted);font-size:.7rem;margin-top:14px}
+footer a{color:var(--muted);text-decoration:underline;cursor:pointer}
 /* app */
 #app{display:none}
 #app.on{display:block}
@@ -103,6 +105,7 @@ footer{margin-top:28px;text-align:center;color:var(--muted);font-size:.7rem}
       <div class="gate-err" id="gateErr"></div>
       <div class="gate-spin" id="gateSpin" style="display:none">Unlocking…</div>
     </form>
+    <div class="gate-note">After the first unlock the password stays saved on this device, so it opens by itself.</div>
   </div>
 </div>
 <div id="app">
@@ -123,7 +126,7 @@ footer{margin-top:28px;text-align:center;color:var(--muted);font-size:.7rem}
   <section id="goals"><h2>🎯 Goals &amp; Targets</h2><div class="card" id="goalList"></div></section>
   <section id="done"><h2>🏁 Done <span class="count" id="doneCount"></span></h2><div id="doneList"></div></section>
   <section id="log"><h2>🗓️ Daily Log</h2><div id="logList"></div></section>
-  <footer>Personal dashboard · updated daily</footer>
+  <footer>Personal dashboard · updated daily · <a href="#" id="forgetLink">Forget this device</a></footer>
 </div>
 </div>
 <script src="data.js"></script>
@@ -280,6 +283,19 @@ function b64ToBuf(b64){
   return buf;
 }
 
+// Remember-device: the password is kept (base64-obfuscated) in localStorage so the
+// gate can unlock by itself on the next visit. Survives data.js re-encryption as long
+// as the password itself is unchanged. "Forget this device" clears it.
+function savePw(pw){ try { localStorage.setItem('tm-gate-pw', btoa(unescape(encodeURIComponent(pw)))); } catch(e){} }
+function loadPw(){ try { var s = localStorage.getItem('tm-gate-pw'); return s ? decodeURIComponent(escape(atob(s))) : null; } catch(e){ return null; } }
+function clearPw(){ try { localStorage.removeItem('tm-gate-pw'); } catch(e){} }
+function gateBusy(on){
+  document.getElementById('gateSpin').style.display = on ? 'block' : 'none';
+  document.getElementById('gatePw').style.display = on ? 'none' : '';
+  document.getElementById('gateBtn').style.display = on ? 'none' : '';
+  document.getElementById('gateBtn').disabled = on;
+}
+
 async function unlock(password){
   var E = window.ENCRYPTED_DATA;
   if (!E) throw new Error('no-data');
@@ -300,6 +316,7 @@ document.getElementById('gateForm').addEventListener('submit', async function(ev
   err.textContent = ''; spin.style.display = 'block'; btn.disabled = true;
   try {
     var data = await unlock(pw);
+    savePw(pw);
     try { sessionStorage.setItem('tm-data', JSON.stringify(data)); } catch(e){}
     boot(data);
   } catch(e) {
@@ -309,10 +326,28 @@ document.getElementById('gateForm').addEventListener('submit', async function(ev
   }
 });
 
+document.getElementById('forgetLink').addEventListener('click', function(ev){
+  ev.preventDefault();
+  clearPw();
+  try { sessionStorage.removeItem('tm-data'); } catch(e){}
+  location.reload();
+});
+
 (function(){
   var cached = null;
   try { cached = sessionStorage.getItem('tm-data'); } catch(e){}
   if (cached) { try { boot(JSON.parse(cached)); return; } catch(e){} }
+  var savedPw = loadPw();
+  if (savedPw) {
+    gateBusy(true);
+    unlock(savedPw).then(function(data){
+      try { sessionStorage.setItem('tm-data', JSON.stringify(data)); } catch(e){}
+      boot(data);
+    }).catch(function(){
+      clearPw();
+      gateBusy(false);
+    });
+  }
 })();
 </script>
 </body>
